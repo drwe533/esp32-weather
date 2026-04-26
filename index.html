@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Dashboard</title>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      margin: 10px;
+      border-radius: 15px;
+      display: inline-block;
+      width: 200px;
+    }
+
+    canvas {
+      background: white;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>ESP32 Weather Dashboard</h1>
+
+<div class="card">
+  <h2>Температура</h2>
+  <h1 id="temp">--</h1>
+</div>
+
+<div class="card">
+  <h2>Влажность</h2>
+  <h1 id="hum">--</h1>
+</div>
+
+<canvas id="chart"></canvas>
+
+<script>
+const firebaseConfig = {
+  databaseURL: "https://esp32-weather-33490-default-rtdb.europe-west1.firebasedatabase.app"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let labels = [];
+let tempData = [];
+let humData = [];
+
+const ctx = document.getElementById('chart').getContext('2d');
+
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [
+      { label: 'Temperature', borderColor: 'red', data: tempData },
+      { label: 'Humidity', borderColor: 'blue', data: humData }
+    ]
+  }
+});
+
+db.ref("sensor").on("value", (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  document.getElementById("temp").innerText = data.temperature;
+  document.getElementById("hum").innerText = data.humidity;
+
+  let time = new Date().toLocaleTimeString();
+
+  labels.push(time);
+  tempData.push(data.temperature);
+  humData.push(data.humidity);
+
+  if (labels.length > 20) {
+    labels.shift();
+    tempData.shift();
+    humData.shift();
+  }
+
+  chart.update();
+});
+</script>
+
+</body>
+</html>
