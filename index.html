@@ -20,9 +20,7 @@
       padding: 10px;
     }
 
-    h1 {
-      font-size: 22px;
-    }
+    h1 { font-size: 22px; }
 
     .container {
       display: flex;
@@ -36,9 +34,7 @@
       margin: 10px;
       border-radius: 15px;
       width: 140px;
-      flex: 1;
       max-width: 160px;
-      transition: 0.3s;
     }
 
     .value {
@@ -65,15 +61,15 @@
 
 <body>
 
-<h1>📡 ESP32 Weather</h1>
+<h1>📡 ESP32 Weather Dashboard</h1>
 
 <div class="container">
-  <div class="card" id="tempCard">
+  <div class="card">
     <h3>Температура</h3>
     <div class="value" id="temp">--</div>
   </div>
 
-  <div class="card" id="humCard">
+  <div class="card">
     <h3>Влажность</h3>
     <div class="value" id="hum">--</div>
   </div>
@@ -84,6 +80,7 @@
 <canvas id="chart"></canvas>
 
 <script>
+// Firebase
 const firebaseConfig = {
   databaseURL: "https://esp32-weather-33490-default-rtdb.europe-west1.firebasedatabase.app"
 };
@@ -91,14 +88,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// данные графика
 let labels = [];
 let tempData = [];
 let humData = [];
 
-let lastUpdate = Date.now();
+let lastUpdate = 0;
 
 const ctx = document.getElementById('chart').getContext('2d');
 
+// график
 const chart = new Chart(ctx, {
   type: 'line',
   data: {
@@ -123,42 +122,33 @@ const chart = new Chart(ctx, {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      y: {
-        beginAtZero: true
-      }
+      y: { beginAtZero: true }
     }
   }
 });
 
-// 🔥 Цветовая логика
-function updateColors(temp, hum) {
-  const tempCard = document.getElementById("tempCard");
-  const humCard = document.getElementById("humCard");
-
-  // Температура
-  if (temp < 20) tempCard.style.background = "#1e40af"; // холодно
-  else if (temp < 28) tempCard.style.background = "#16a34a"; // нормально
-  else tempCard.style.background = "#dc2626"; // жарко
-
-  // Влажность
-  if (hum < 30) humCard.style.background = "#f59e0b"; // сухо
-  else if (hum < 60) humCard.style.background = "#16a34a"; // нормально
-  else humCard.style.background = "#2563eb"; // влажно
-}
-
-// 📡 Получение данных
+// получение данных
 db.ref("sensor").on("value", (snapshot) => {
   const data = snapshot.val();
+
   if (!data) return;
+
+  // защита от null
+  const temp = Number(data.temperature);
+  const hum = Number(data.humidity);
+
+  if (isNaN(temp) || isNaN(hum)) return;
+
+  document.getElementById("temp").innerText = temp.toFixed(1);
+  document.getElementById("hum").innerText = hum.toFixed(1);
 
   lastUpdate = Date.now();
 
-  document.getElementById("temp").innerText = data.temperature;
-  document.getElementById("hum").innerText = data.humidity;
+  const time = new Date().toLocaleTimeString();
 
-  updateColors(data.temperature, data.humidity);
-
-  let time = new Date().toLocaleTimeString();
+  labels.push(time);
+  tempData.push(temp);
+  humData.push(hum);
 
   if (labels.length > 20) {
     labels.shift();
@@ -166,22 +156,23 @@ db.ref("sensor").on("value", (snapshot) => {
     humData.shift();
   }
 
-  labels.push(time);
-  tempData.push(data.temperature);
-  humData.push(data.humidity);
-
   chart.update('none');
 });
 
-// 🟢 Онлайн / 🔴 Оффлайн
+// статус устройства
 setInterval(() => {
-  let now = Date.now();
-  let diff = (now - lastUpdate) / 1000;
-
   const status = document.getElementById("status");
 
-  if (diff < 10) {
+  if (Date.now() - lastUpdate < 10000) {
     status.innerText = "🟢 Устройство онлайн";
     status.className = "status online";
   } else {
     status.innerText = "🔴 Нет данных";
+    status.className = "status offline";
+  }
+}, 2000);
+
+</script>
+
+</body>
+</html>
