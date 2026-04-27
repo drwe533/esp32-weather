@@ -8,44 +8,67 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <!-- адаптация под телефон -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body {
       font-family: Arial;
       background: #0f172a;
       color: white;
       text-align: center;
-      padding: 20px;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h1 {
+      font-size: 22px;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .card {
       background: #1e293b;
-      padding: 20px;
+      padding: 15px;
       margin: 10px;
       border-radius: 15px;
-      display: inline-block;
-      width: 200px;
+      width: 140px;
+      flex: 1;
+      max-width: 160px;
+    }
+
+    .value {
+      font-size: 28px;
     }
 
     canvas {
       background: white;
       border-radius: 10px;
       margin-top: 20px;
+      width: 100% !important;
+      height: 300px !important;
     }
   </style>
 </head>
 
 <body>
 
-<h1>ESP32 Weather Dashboard</h1>
+<h1>📡 ESP32 Weather</h1>
 
-<div class="card">
-  <h2>Температура</h2>
-  <h1 id="temp">--</h1>
-</div>
+<div class="container">
+  <div class="card">
+    <h3>Температура</h3>
+    <div class="value" id="temp">--</div>
+  </div>
 
-<div class="card">
-  <h2>Влажность</h2>
-  <h1 id="hum">--</h1>
+  <div class="card">
+    <h3>Влажность</h3>
+    <div class="value" id="hum">--</div>
+  </div>
 </div>
 
 <canvas id="chart"></canvas>
@@ -69,12 +92,32 @@ const chart = new Chart(ctx, {
   data: {
     labels: labels,
     datasets: [
-      { label: 'Temperature', borderColor: 'red', data: tempData },
-      { label: 'Humidity', borderColor: 'blue', data: humData }
+      {
+        label: 'Температура',
+        borderColor: 'red',
+        data: tempData,
+        tension: 0.3
+      },
+      {
+        label: 'Влажность',
+        borderColor: 'blue',
+        data: humData,
+        tension: 0.3
+      }
     ]
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
   }
 });
 
+// обновление ТОЛЬКО последней точки (без лагов)
 db.ref("sensor").on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
@@ -84,17 +127,17 @@ db.ref("sensor").on("value", (snapshot) => {
 
   let time = new Date().toLocaleTimeString();
 
-  labels.push(time);
-  tempData.push(data.temperature);
-  humData.push(data.humidity);
-
   if (labels.length > 20) {
     labels.shift();
     tempData.shift();
     humData.shift();
   }
 
-  chart.update();
+  labels.push(time);
+  tempData.push(data.temperature);
+  humData.push(data.humidity);
+
+  chart.update('none'); // без анимации = плавно
 });
 </script>
 
