@@ -8,7 +8,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- адаптация под телефон -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -39,18 +38,27 @@
       width: 140px;
       flex: 1;
       max-width: 160px;
+      transition: 0.3s;
     }
 
     .value {
       font-size: 28px;
     }
 
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .online { color: #22c55e; }
+    .offline { color: #ef4444; }
+
     canvas {
       background: white;
       border-radius: 10px;
       margin-top: 20px;
       width: 100% !important;
-      height: 300px !important;
+      height: 250px !important;
     }
   </style>
 </head>
@@ -60,16 +68,18 @@
 <h1>📡 ESP32 Weather</h1>
 
 <div class="container">
-  <div class="card">
+  <div class="card" id="tempCard">
     <h3>Температура</h3>
     <div class="value" id="temp">--</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="humCard">
     <h3>Влажность</h3>
     <div class="value" id="hum">--</div>
   </div>
 </div>
+
+<div class="status" id="status">⏳ Подключение...</div>
 
 <canvas id="chart"></canvas>
 
@@ -85,6 +95,8 @@ let labels = [];
 let tempData = [];
 let humData = [];
 
+let lastUpdate = Date.now();
+
 const ctx = document.getElementById('chart').getContext('2d');
 
 const chart = new Chart(ctx, {
@@ -96,19 +108,20 @@ const chart = new Chart(ctx, {
         label: 'Температура',
         borderColor: 'red',
         data: tempData,
-        tension: 0.3
+        tension: 0.4
       },
       {
         label: 'Влажность',
         borderColor: 'blue',
         data: humData,
-        tension: 0.3
+        tension: 0.4
       }
     ]
   },
   options: {
     animation: false,
     responsive: true,
+    maintainAspectRatio: false,
     scales: {
       y: {
         beginAtZero: true
@@ -117,13 +130,33 @@ const chart = new Chart(ctx, {
   }
 });
 
-// обновление ТОЛЬКО последней точки (без лагов)
+// 🔥 Цветовая логика
+function updateColors(temp, hum) {
+  const tempCard = document.getElementById("tempCard");
+  const humCard = document.getElementById("humCard");
+
+  // Температура
+  if (temp < 20) tempCard.style.background = "#1e40af"; // холодно
+  else if (temp < 28) tempCard.style.background = "#16a34a"; // нормально
+  else tempCard.style.background = "#dc2626"; // жарко
+
+  // Влажность
+  if (hum < 30) humCard.style.background = "#f59e0b"; // сухо
+  else if (hum < 60) humCard.style.background = "#16a34a"; // нормально
+  else humCard.style.background = "#2563eb"; // влажно
+}
+
+// 📡 Получение данных
 db.ref("sensor").on("value", (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
 
+  lastUpdate = Date.now();
+
   document.getElementById("temp").innerText = data.temperature;
   document.getElementById("hum").innerText = data.humidity;
+
+  updateColors(data.temperature, data.humidity);
 
   let time = new Date().toLocaleTimeString();
 
@@ -137,9 +170,18 @@ db.ref("sensor").on("value", (snapshot) => {
   tempData.push(data.temperature);
   humData.push(data.humidity);
 
-  chart.update('none'); // без анимации = плавно
+  chart.update('none');
 });
-</script>
 
-</body>
-</html>
+// 🟢 Онлайн / 🔴 Оффлайн
+setInterval(() => {
+  let now = Date.now();
+  let diff = (now - lastUpdate) / 1000;
+
+  const status = document.getElementById("status");
+
+  if (diff < 10) {
+    status.innerText = "🟢 Устройство онлайн";
+    status.className = "status online";
+  } else {
+    status.innerText = "🔴 Нет данных";
